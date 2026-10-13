@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition)
 // @namespace    https://ishangam.isha.in/
-// @version      2.1.0
+// @version      2.2.0
 // @description  Anti-Ban Safe WhatsApp Web Campaign Automation with Dynamic Message Limits, Randomized Human Delays (10s to 3 min), Batch Cooldowns, Contact Personalization, Single-Tab Reuse, and Delivery Confirmation.
 // @author       Antigravity
 // @match        *://ishangam.isha.in/call_campaign/*
@@ -23,18 +23,18 @@
         defaultRemark: "whatsapp send",
         autoSendWhatsAppWeb: true,   // Set false for Semi-Auto Mode (You click Send manually)
         autoCloseWhatsAppTab: false, // KEEP SAME TAB OPEN for all numbers
-        
+
         // Anti-Ban Humanization Delays (10 sec to 3 min)
         defaultMinDelaySec: 10,      // Minimum 10 seconds between messages
         defaultMaxDelaySec: 180,     // Maximum 3 minutes (180 seconds) between messages
-        
+
         // Dynamic Max Send Limit per Run (e.g. 30)
         defaultMaxMessages: 30,      // Default limit of messages to send on a run (0 = unlimited)
-        
+
         // Anti-Ban Batch Cooldowns
         batchSize: 10,               // Additional cooldown check every 10 messages if enabled
         batchCooldownMs: 180000,     // 3 minutes (180s) cooldown break between batches
-        
+
         maxWaWaitTimeoutMs: 60000    // 60s safety timeout for loading/sending
     };
 
@@ -68,7 +68,7 @@
     // 1. ISHANGAM CALL CAMPAIGN AUTOMATION
     // ==========================================
     if (window.location.hostname.includes("ishangam.isha.in")) {
-        console.log("[Ishangam Auto] Script loaded - Anti-Ban Safe Edition (v2.1.0)");
+        console.log("[Ishangam Auto] Script loaded - Anti-Ban Safe Edition (v2.2.0)");
 
         let countdownTimer = null;
         let waWaitInterval = null;
@@ -109,11 +109,55 @@
             return count;
         }
 
-        function resetRunSentCount() {
+        // Comprehensive Campaign Reset: Clears counters, timers, loop state & signals
+        function resetCampaignState(interactive = true) {
+            if (interactive && isAutoLoopActive()) {
+                const confirmed = window.confirm("A campaign loop is currently active.\nDo you want to stop it and reset campaign state?");
+                if (!confirmed) return false;
+            }
+
+            // 1. Clear active countdown & listeners
+            if (countdownTimer) {
+                clearInterval(countdownTimer);
+                countdownTimer = null;
+            }
+            cleanupListeners();
+
+            // 2. Stop auto loop
+            GM_setValue(AUTO_LOOP_KEY, "false");
+            localStorage.setItem(AUTO_LOOP_KEY, "false");
+
+            // 3. Clear run counter & session count
             localStorage.setItem(RUN_SENT_COUNT_KEY, "0");
             GM_setValue(RUN_SENT_COUNT_KEY, "0");
+            localStorage.setItem(MSG_COUNT_KEY, "0");
+            GM_setValue(MSG_COUNT_KEY, "0");
+
+            // 4. Clear batch cooldown session state
+            sessionStorage.removeItem("batch_cooldown_passed");
+
+            // 5. Clear pending cross-tab signals
+            try {
+                GM_deleteValue(WA_SIGNAL_KEY);
+                GM_deleteValue(WA_NAV_URL_KEY);
+                localStorage.removeItem(WA_SIGNAL_KEY);
+                localStorage.removeItem(WA_NAV_URL_KEY);
+            } catch (e) {}
+
+            // 6. Update UI
             updateCounterDisplay();
-            showToast("Run counter reset to 0", "info");
+            updateUIState();
+
+            const statusDiv = document.getElementById('auto-loop-status');
+            if (statusDiv) {
+                statusDiv.innerHTML = "Ready (Fresh Campaign)";
+                statusDiv.style.color = "#cbd5e1";
+            }
+
+            if (interactive) {
+                showToast("🔄 Campaign reset! All previous state cleared. Ready to start fresh.", "success");
+            }
+            return true;
         }
 
         // Max Messages Limit Getter & Setter
@@ -158,7 +202,7 @@
 
         function cleanupListeners() {
             if (listenerId && typeof GM_removeValueChangeListener === "function") {
-                try { GM_removeValueChangeListener(listenerId); } catch (e) {}
+                try { GM_removeValueChangeListener(listenerId); } catch (e) { }
                 listenerId = null;
             }
             if (waWaitInterval) {
@@ -196,7 +240,7 @@
                 // Personalize message with contact lead's name if available
                 let contactName = getContactName();
                 let targetUrl = waUrl;
-                
+
                 if (contactName && targetUrl.includes("text=")) {
                     targetUrl = personalizeWaUrl(targetUrl, contactName);
                 }
@@ -235,7 +279,7 @@
                         console.log("[Ishangam Auto] WhatsApp send confirmed! Marking outcome & remarks...");
                         setCallOutcome("call_completed");
                         setCallingRemarks(CONFIG.defaultRemark);
-                        
+
                         let currentRunSent = incrementRunSentCount();
                         incrementSentCount();
                         updateCounterDisplay();
@@ -294,7 +338,7 @@
                     urlObj.searchParams.set("text", text);
                     return urlObj.toString();
                 }
-            } catch (e) {}
+            } catch (e) { }
             return rawUrl;
         }
 
@@ -392,11 +436,11 @@
 
             selectEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
             selectEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-            
+
             if (window.$) {
                 try {
                     window.$(selectEl).val(val).trigger('change').trigger('input');
-                } catch (e) {}
+                } catch (e) { }
             }
 
             const outcomeDep = document.querySelector('.js_portal-outcome-dependent');
@@ -437,11 +481,11 @@
             remarkEl.value = remarkText;
             remarkEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
             remarkEl.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-            
+
             if (window.$) {
                 try {
                     window.$(remarkEl).val(remarkText).trigger('change').trigger('input');
-                } catch (e) {}
+                } catch (e) { }
             }
 
             const errZone = remarkEl.closest('.js_question-wrapper')?.querySelector('.js_errzone');
@@ -493,10 +537,10 @@
             if (CONFIG.batchSize > 0 && runSent > 0 && runSent % CONFIG.batchSize === 0 && !sessionStorage.getItem("batch_cooldown_passed")) {
                 sessionStorage.setItem("batch_cooldown_passed", "true");
                 console.log(`[Ishangam Auto] Batch milestone (${runSent} sent). Enforcing 3-min cooldown break...`);
-                
+
                 let breakSeconds = Math.ceil(CONFIG.batchCooldownMs / 1000);
                 const statusDiv = document.getElementById('auto-loop-status');
-                
+
                 countdownTimer = setInterval(() => {
                     breakSeconds--;
                     if (statusDiv) {
@@ -518,7 +562,7 @@
             const maxSec = getMaxDelaySec();
             const delayMs = getRandomDelay(minSec * 1000, maxSec * 1000);
             let secondsLeft = Math.ceil(delayMs / 1000);
-            
+
             console.log(`[Ishangam Auto] Anti-Ban Random Delay: ${secondsLeft}s (${formatTime(secondsLeft)}) before next lead. [Run Progress: ${runSent}/${maxLimit || '∞'}]`);
 
             const statusDiv = document.getElementById('auto-loop-status');
@@ -601,18 +645,28 @@
                             <div id="auto-loop-status" style="font-size: 11px; opacity: 0.85; color: #cbd5e1;">Ready</div>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; background: rgba(255,255,255,0.07); padding: 4px 10px; border-radius: 8px;">
-                        <span style="color: #94a3b8;">Sent:</span>
-                        <strong id="sent-count-display" style="color: #4ade80;">${currentRunSent} / ${currentLimit > 0 ? currentLimit : '∞'}</strong>
-                        <button id="btn-reset-counter" title="Reset current run counter to 0" style="
-                            background: transparent;
-                            border: none;
-                            color: #94a3b8;
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; background: rgba(255,255,255,0.07); padding: 4px 10px; border-radius: 8px;">
+                            <span style="color: #94a3b8;">Sent:</span>
+                            <strong id="sent-count-display" style="color: #4ade80;">${currentRunSent} / ${currentLimit > 0 ? currentLimit : '∞'}</strong>
+                        </div>
+                        <button id="btn-reset-campaign" title="Reset previous campaign state, counter & start fresh" style="
+                            background: rgba(239, 68, 68, 0.2);
+                            border: 1px solid rgba(239, 68, 68, 0.45);
+                            color: #fca5a5;
+                            border-radius: 8px;
+                            padding: 4px 10px;
+                            font-size: 11px;
+                            font-weight: 700;
                             cursor: pointer;
-                            font-size: 13px;
-                            padding: 0 2px;
-                            transition: color 0.15s;
-                        ">🔄</button>
+                            display: flex;
+                            align-items: center;
+                            gap: 4px;
+                            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+                            transition: all 0.2s ease;
+                        ">
+                            🔄 Reset
+                        </button>
                     </div>
                 </div>
 
@@ -736,7 +790,7 @@
             const btnToggleLoop = document.getElementById('btn-toggle-loop');
             const btnComplete = document.getElementById('btn-wa-complete');
             const btnSubmitNext = document.getElementById('btn-wa-submit-next');
-            const btnResetCounter = document.getElementById('btn-reset-counter');
+            const btnResetCampaign = document.getElementById('btn-reset-campaign');
             const maxLimitInput = document.getElementById('max-limit-input');
             const minDelayInput = document.getElementById('min-delay-input');
             const maxDelayInput = document.getElementById('max-delay-input');
@@ -758,10 +812,22 @@
                 showToast(`Max delay set to ${getMaxDelaySec()}s (${formatTime(getMaxDelaySec())})`, "info");
             });
 
-            // Counter Reset Listener
-            btnResetCounter.addEventListener('click', () => {
-                resetRunSentCount();
-            });
+            // Campaign State Reset Listener
+            if (btnResetCampaign) {
+                btnResetCampaign.addEventListener('mouseenter', () => {
+                    btnResetCampaign.style.background = 'rgba(239, 68, 68, 0.35)';
+                    btnResetCampaign.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+                    btnResetCampaign.style.transform = 'translateY(-1px)';
+                });
+                btnResetCampaign.addEventListener('mouseleave', () => {
+                    btnResetCampaign.style.background = 'rgba(239, 68, 68, 0.2)';
+                    btnResetCampaign.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+                    btnResetCampaign.style.transform = 'translateY(0)';
+                });
+                btnResetCampaign.addEventListener('click', () => {
+                    resetCampaignState(true);
+                });
+            }
 
             // Loop Toggle Listener
             btnToggleLoop.addEventListener('click', () => {
@@ -773,8 +839,8 @@
                     const limit = getMaxMessagesLimit();
                     const currentCount = getRunSentCount();
                     if (limit > 0 && currentCount >= limit) {
-                        // Reset counter if starting again after reaching limit
-                        resetRunSentCount();
+                        // Reset campaign state if starting again after reaching limit
+                        resetCampaignState(false);
                     }
                     setAutoLoopState(true);
                     showToast(`Anti-Ban Safe Loop Started! (Max: ${limit > 0 ? limit : '∞'}, Gap: ${getMinDelaySec()}s-${formatTime(getMaxDelaySec())})`, "success");
@@ -808,7 +874,7 @@
                 } else {
                     btnToggleLoop.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
                     btnToggleLoop.innerHTML = `▶️ Start Safe Auto Loop (${maxLimit > 0 ? `Max: ${maxLimit}` : 'All'})`;
-                    if (statusDiv && !statusDiv.textContent.includes('Target reached')) {
+                    if (statusDiv && !statusDiv.textContent.includes('Target reached') && !statusDiv.textContent.includes('Fresh Campaign')) {
                         statusDiv.innerHTML = 'Paused';
                         statusDiv.style.color = '#cbd5e1';
                     }
@@ -975,7 +1041,7 @@
             if (sendBtn) {
                 console.log("[WhatsApp Web Auto] Send button detected!");
                 sendAttempted = true;
-                
+
                 if (CONFIG.autoSendWhatsAppWeb) {
                     // Anti-Ban humanized typing pause before clicking Send (1.5s to 3.5s)
                     const humanPause = getRandomDelay(1500, 3500);

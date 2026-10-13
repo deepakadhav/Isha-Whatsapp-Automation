@@ -1,22 +1,26 @@
-# 🛡️ Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition v2.1.0)
+# 🛡️ Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition v2.2.0)
 
 This script automates sending WhatsApp messages, marking call outcomes, entering remarks, and continuously processing leads on **Ishangam Call Campaign** (`ishangam.isha.in`) with robust anti-ban protections and dynamic run control.
 
 ---
 
-## 🌟 What's New in v2.1.0
+## 🌟 What's New in v2.2.0
 
-1. **🎯 Dynamic Max Messages Limit (e.g. 30 Messages Run)**:
+1. **🔄 Full Campaign State Reset Button**:
+   - Prominent **`🔄 Reset`** button located right beside the sent counter badge.
+   - Clears all previous campaign run counters, stops lingering countdown timers, removes stale cross-tab WhatsApp signals, clears batch cooldown flags, and resets the loop state to start completely fresh.
+   - Confirmation prompt protection prevents accidental resets while a loop is actively running.
+
+2. **🎯 Dynamic Max Messages Limit (e.g. 30 Messages Run)**:
    - Set the exact number of messages to send on any run (e.g., `30`, `50`, or `0` for unlimited) directly in the UI widget.
    - The loop tracks progress in real-time (`Sent: 12 / 30`) and **automatically halts** once the target is reached.
-   - Includes a quick `🔄` reset button to restart the counter whenever needed.
 
-2. **⏳ Randomized 10s to 3-Minute Humanized Gaps**:
+3. **⏳ Randomized 10s to 3-Minute Humanized Gaps**:
    - Random interval between **10 seconds and 180 seconds (3 minutes)** between each message to eliminate robotic patterns and prevent WhatsApp detection.
    - Live countdown display formatted clearly in minutes & seconds (e.g., `🟢 Sending next lead in 2m 15s (12/30)`).
    - Delay range is fully adjustable directly from the UI toolbar.
 
-3. **🛡️ Complete Anti-Ban Suite**:
+4. **🛡️ Complete Anti-Ban Suite**:
    - **Contact Name Personalization**: Automatically prepends the lead's name (`Namaskaram [Name]! 🙏`) to make every outgoing message unique.
    - **Batch Cooldown Breathers**: Automatic 3-minute cooldown every 10 messages.
    - **Single WhatsApp Tab Reuse**: Direct cross-tab communication avoids opening dozens of browser tabs.
@@ -28,6 +32,7 @@ This script automates sending WhatsApp messages, marking call outcomes, entering
 
 1. Open **[ishangam.isha.in/call_campaign](https://ishangam.isha.in/call_campaign/)** with Tampermonkey / Violentmonkey enabled.
 2. In the floating bottom-right control widget:
+   - Click **`🔄 Reset`** if you want to clear old campaign numbers/state and start fresh.
    - Set **🎯 Max Limit** (default: `30`).
    - Set **⏳ Delay Range** (default: `10` to `180` sec).
 3. Click **`▶️ Start Safe Auto Loop`**.
