@@ -1,37 +1,43 @@
-# 🛡️ Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition v2.3.0)
+# 🛡️ Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition v2.3.1)
 
-This script automates sending WhatsApp messages, marking call outcomes, entering remarks, and continuously processing leads on **Ishangam Call Campaign** (`ishangam.isha.in`) with robust anti-ban protections, image flyer attachments, test messaging, and dynamic run control.
+This script automates sending WhatsApp messages, marking call outcomes, entering remarks, and continuously processing leads on **Ishangam Call Campaign** (`ishangam.isha.in`) with robust anti-ban protections, image flyer attachments, test messaging, numbers not on WhatsApp auto-handling, and dynamic run control.
 
 ---
 
-## 🌟 What's New in v2.3.0
+## 🌟 What's New in v2.3.1
 
-1. **📸 Image Flyer Attachment (Sends Image First ➔ Then Text Message)**:
+1. **🚫 Auto-Handling Numbers Not on WhatsApp**:
+   - **Auto-Dismiss Dialog**: When WhatsApp Web shows a modal popup indicating the phone number is invalid or not registered on WhatsApp (*"Phone number isn't on WhatsApp"*, *"Phone number shared via url is invalid"*, *"Couldn't find this phone number on WhatsApp"*, etc.), the script automatically clicks the **OK** button to cleanly dismiss the modal and keep WhatsApp Web unblocked.
+   - **Instant CRM Sync**: Automatically broadcasts an invalid signal back to Ishangam CRM.
+   - **CRM Status & Remarks**: Sets Call Outcome dropdown to **"Invalid Number"** (`invalid_number`) and Calling Remarks to **`"not on whatsapp"`**.
+   - **Smooth Auto-Loop Progression**: When in safe auto-loop mode, shows a 2s warning countdown and automatically submits the form to load the next lead without stopping the campaign.
+
+2. **📸 Image Flyer Attachment (Flyer + Message Caption in Single Send)**:
    - Attach program flyers, posters, or brochures directly in the UI widget (`📎 Select Image`).
    - Automatically optimizes and resizes images in-browser to ~150-250KB for fast transfer and crisp mobile display.
-   - **Sequenced Flow**: When enabled, the script uploads the image first, previews it, clicks send, waits a humanized anti-ban pause (2.5s to 4s), and then sends the personalized text message.
+   - **Unified Delivery**: Delivers image flyer with personalized text as caption in one single message balloon (no duplicate text messages sent).
    - Toggle on/off anytime with the `📸 Attach Image Flyer` checkbox, or click `✕` to remove and revert to text-only mode.
 
-2. **🧪 Test Message Mode**:
+3. **🧪 Test Message Mode**:
    - Dedicated **`🧪 Test`** button to verify message formatting and image attachments before starting campaigns.
    - Send tests either to the **Current Lead** or to a **Custom Phone Number** (e.g. your own WhatsApp number).
    - Test sends **DO NOT** increment campaign run counters, **DO NOT** mark outcomes, and **DO NOT** advance leads on Ishangam CRM.
 
-3. **🔄 Full-Stack Campaign & WhatsApp State Reset**:
+4. **🔄 Full-Stack Campaign & WhatsApp State Reset**:
    - Prominent **`🔄 Reset State`** button in both the Ishangam widget and WhatsApp Web badge overlay.
    - Clears run counters (`0 / 30`), cancels countdowns, purges pending navigation URLs, and clears WhatsApp Web's internal session cache to prevent sending old messages from yesterday's campaign.
    - **Fresh Session Guard**: When opening a fresh browser session or tab, the automation starts strictly in an idle, manually cleared state.
 
-4. **🎯 Dynamic Max Messages Limit (e.g. 30 Messages Run)**:
+5. **🎯 Dynamic Max Messages Limit (e.g. 30 Messages Run)**:
    - Set the exact number of messages to send on any run (e.g., `30`, `50`, or `0` for unlimited) directly in the UI widget.
    - Tracks progress in real-time (`Sent: 12 / 30`) and **automatically halts** once the target is reached.
 
-5. **⏳ Randomized 10s to 3-Minute Humanized Gaps**:
+6. **⏳ Randomized 10s to 3-Minute Humanized Gaps**:
    - Random interval between **10 seconds and 180 seconds (3 minutes)** between leads to eliminate robotic patterns.
    - Live countdown display formatted clearly in minutes & seconds (e.g., `🟢 Sending next lead in 2m 15s (12/30)`).
 
-6. **🛡️ Complete Anti-Ban Suite**:
-   - **Contact Name Personalization**: Automatically prepends the lead's name (`Namaskaram [Name]! 🙏`) to make every outgoing message unique.
+7. **🛡️ Complete Anti-Ban Suite**:
+   - **Contact Name Personalization**: Cleanly greets participants with `Namaskaram [Name]! 🙏` followed by body text without duplicate blank lines or stray commas.
    - **Batch Cooldown Breathers**: Automatic 3-minute cooldown every 10 messages.
    - **Single WhatsApp Tab Reuse**: Direct cross-tab communication avoids opening dozens of browser tabs.
    - **Delivery Confirmation Handshake**: Automatically confirms delivery before moving to the next lead.

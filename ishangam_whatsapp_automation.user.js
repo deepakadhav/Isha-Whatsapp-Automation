@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition v2.3.0)
+// @name         Ishangam Call Campaign WhatsApp Automation (Anti-Ban Safe Edition v2.3.1)
 // @namespace    https://ishangam.isha.in/
-// @version      2.3.0
-// @description  Anti-Ban Safe WhatsApp Automation: Image Flyer Attachment (Sends Image First, then Text), Test Message Mode, Dynamic Message Limits, Human Pacing (10s to 3 min), Full Campaign & WhatsApp State Reset, Single-Tab Reuse, and Delivery Confirmation.
+// @version      2.3.1
+// @description  Anti-Ban Safe WhatsApp Automation: Image Flyer Attachment (Sends Image First, then Text), Test Message Mode, Auto-Handling for Numbers Not on WhatsApp (Auto-Dismiss & CRM Invalid Mark), Dynamic Message Limits, Human Pacing (10s to 3 min), Full Campaign & WhatsApp State Reset, Single-Tab Reuse, and Delivery Confirmation.
 // @author       Antigravity
 // @match        *://ishangam.isha.in/call_campaign/*
 // @match        *://web.whatsapp.com/*
@@ -104,7 +104,7 @@
     // 1. ISHANGAM CALL CAMPAIGN AUTOMATION
     // ==========================================
     if (window.location.hostname.includes("ishangam.isha.in")) {
-        console.log("[Ishangam Auto] Script loaded - Anti-Ban Safe Edition (v2.3.0)");
+        console.log("[Ishangam Auto] Script loaded - Anti-Ban Safe Edition (v2.3.1)");
 
         let countdownTimer = null;
         let waWaitInterval = null;
@@ -437,9 +437,24 @@
                     }
                 }
 
-                if (!phone) {
-                    showToast("❌ Phone number could not be determined!", "danger");
-                    if (!isTest) setAutoLoopState(false);
+                const cleanDigits = phone ? phone.replace(/[^\d]/g, '') : '';
+                if (!phone || cleanDigits.length < 8) {
+                    console.warn(`[Ishangam Auto] Lead phone is missing or invalid: "${phone}"`);
+                    if (isTest) {
+                        showToast("❌ Phone number could not be determined or is too short!", "danger");
+                        return;
+                    }
+                    showToast("⚠️ Missing or invalid phone number! Marking as Invalid in CRM.", "warning");
+                    setCallOutcome("invalid_number");
+                    setCallingRemarks("missing or invalid phone format");
+                    if (autoSubmit || isAutoLoopActive()) {
+                        const statusDiv = document.getElementById('auto-loop-status');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `⚠️ Invalid Phone! Loading next lead...`;
+                            statusDiv.style.color = "#f97316";
+                        }
+                        setTimeout(() => submitNextContact("invalid_number", "missing or invalid phone format"), 1200);
+                    }
                     return;
                 }
 
@@ -488,22 +503,27 @@
 
                 // Start Handshake Listener: Wait for GM_setValue signal from web.whatsapp.com
                 listenForSendConfirmation((result) => {
-                    if (result && result.invalid) {
-                        console.warn("[Ishangam Auto] Invalid WhatsApp number detected!");
+                    if (result && (result.invalid || result.notOnWhatsApp)) {
+                        console.warn(`[Ishangam Auto] Number +${phone} is NOT on WhatsApp! Reason:`, result.error || "Not on WhatsApp");
                         if (isTest) {
-                            showToast(`⚠️ Test failed: Invalid WhatsApp Number (+${phone})!`, "warning");
+                            showToast(`⚠️ Test failed: Number +${phone} is NOT registered on WhatsApp!`, "warning");
                             if (statusDiv) {
-                                statusDiv.innerHTML = "⚠️ Test: Invalid Number";
+                                statusDiv.innerHTML = `⚠️ Test: Not on WhatsApp (+${phone})`;
                                 statusDiv.style.color = "#f97316";
                             }
                         } else {
-                            showToast("⚠️ Invalid WhatsApp Number! Marked Invalid in CRM.", "warning");
+                            showToast(`⚠️ Number +${phone} is NOT on WhatsApp! Marked Invalid in CRM.`, "warning");
                             setCallOutcome("invalid_number");
-                            setCallingRemarks("invalid number");
+                            setCallingRemarks("not on whatsapp");
 
                             if (autoSubmit || isAutoLoopActive()) {
-                                if (statusDiv) statusDiv.innerHTML = `⚠️ Invalid! Loading next lead...`;
-                                setTimeout(() => submitNextContact(), 1200);
+                                if (statusDiv) {
+                                    statusDiv.innerHTML = `⚠️ Not on WhatsApp! Loading next lead in 2s...`;
+                                    statusDiv.style.color = "#f97316";
+                                }
+                                setTimeout(() => {
+                                    submitNextContact("invalid_number", "not on whatsapp");
+                                }, 1500);
                             }
                         }
                         return;
@@ -770,14 +790,31 @@
             return true;
         }
 
-        // Submit form to get next lead
-        function submitNextContact() {
-            setCallOutcome("call_completed");
-            setCallingRemarks(CONFIG.defaultRemark);
+        // Submit form to get next lead (preserves chosen outcome and remarks if already set)
+        function submitNextContact(outcome = null, remark = null) {
+            if (outcome) {
+                setCallOutcome(outcome);
+            } else {
+                const selectEl = document.querySelector('form.js_call_campaignform select.js_portal_call_status')
+                    || document.querySelector('select.js_portal_call_status');
+                if (!selectEl || !selectEl.value) {
+                    setCallOutcome("call_completed");
+                }
+            }
+
+            if (remark) {
+                setCallingRemarks(remark);
+            } else {
+                const remarkEl = document.querySelector('form.js_call_campaignform textarea.js_portal-remarks-input')
+                    || document.querySelector('textarea.js_portal-remarks-input');
+                if (!remarkEl || !remarkEl.value) {
+                    setCallingRemarks(CONFIG.defaultRemark);
+                }
+            }
 
             const submitBtn = document.querySelector('form.js_call_campaignform button[name="button_submit"][value="finish"], button[name="button_submit"][value="finish"]');
             if (submitBtn) {
-                console.log("[Ishangam Auto] Submitting form for next contact...");
+                console.log(`[Ishangam Auto] Submitting form for next contact (outcome: ${document.querySelector('select.js_portal_call_status')?.value}, remark: "${document.querySelector('textarea.js_portal-remarks-input')?.value}")...`);
                 submitBtn.click();
             } else {
                 const form = document.querySelector('form.js_call_campaignform');
@@ -945,7 +982,7 @@
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size: 20px;">🛡️</span>
                         <div>
-                            <div style="font-weight: 700; font-size: 13px; letter-spacing: 0.5px; color: #4ade80;">ANTI-BAN WHATSAPP AUTO v2.3.0</div>
+                            <div style="font-weight: 700; font-size: 13px; letter-spacing: 0.5px; color: #4ade80;">ANTI-BAN WHATSAPP AUTO v2.3.1</div>
                             <div id="auto-loop-status" style="font-size: 11px; opacity: 0.85; color: #cbd5e1;">Ready (Fresh Campaign)</div>
                         </div>
                     </div>
@@ -1385,12 +1422,13 @@
     // 2. WHATSAPP WEB AUTO-SEND HELPER
     // ==========================================
     if (window.location.hostname.includes("web.whatsapp.com")) {
-        console.log("[WhatsApp Web Auto] Single-Tab Helper loaded on web.whatsapp.com (v2.3.0)");
+        console.log("[WhatsApp Web Auto] Single-Tab Helper loaded on web.whatsapp.com (v2.3.1)");
 
         let lastPhoneProcessed = null;
         let lastNavigatedUrl = window.location.href;
         let sendAttempted = false;
         let isProcessingImage = false;
+        let invalidNumberHandled = false;
 
         GM_setValue(WA_TAB_ALIVE_KEY, true);
 
@@ -1409,12 +1447,13 @@
             lastPhoneProcessed = null;
             sendAttempted = false;
             isProcessingImage = false;
+            invalidNumberHandled = false;
             lastNavigatedUrl = window.location.href;
 
             // Close any open invalid popup modal if visible
-            const modalCloseBtn = document.querySelector('div[role="dialog"] button');
-            if (modalCloseBtn) {
-                try { modalCloseBtn.click(); } catch (e) { }
+            const detected = detectInvalidNumberModal();
+            if (detected) {
+                dismissInvalidNumberModal(detected.container);
             }
 
             const badge = document.getElementById('wa-helper-badge');
@@ -1790,6 +1829,217 @@
             }
         }
 
+        // Helper: Normalize text across unicode curly/straight quotes, double quotes, and whitespace
+        function normalizeWaText(str) {
+            if (!str) return "";
+            return str
+                .replace(/[\u2018\u2019\u201A\u201B\u2032']/g, "'") // Map all apostrophes to ASCII '
+                .replace(/[\u201C\u201D\u201E\u201F\u2033"]/g, '"') // Map all double quotes to ASCII "
+                .replace(/\s+/g, ' ')                                // Collapse whitespace
+                .toLowerCase()
+                .trim();
+        }
+
+        // Predicate: Does this normalized text indicate a number not on WhatsApp or invalid?
+        function isNotOnWhatsAppText(norm) {
+            if (!norm) return false;
+
+            // 1. "isn't on whatsapp", "is not on whatsapp", "not on whatsapp", "not registered on whatsapp"
+            if (norm.includes("on whatsapp")) {
+                if (
+                    norm.includes("isn't") ||
+                    norm.includes("isnt") ||
+                    norm.includes("not on") ||
+                    norm.includes("is not") ||
+                    norm.includes("not registered") ||
+                    norm.includes("couldn't find") ||
+                    norm.includes("could not find") ||
+                    norm.includes("can't find") ||
+                    norm.includes("cannot find")
+                ) {
+                    return true;
+                }
+            }
+
+            // 2. URL invalid / shared via url is invalid
+            if (
+                norm.includes("shared via url is invalid") ||
+                norm.includes("url is invalid") ||
+                (norm.includes("invalid") && (norm.includes("number") || norm.includes("phone") || norm.includes("url")))
+            ) {
+                return true;
+            }
+
+            // 3. Couldn't find / no contact found
+            if (
+                norm.includes("couldn't find this") ||
+                norm.includes("could not find this") ||
+                norm.includes("no contact found")
+            ) {
+                return true;
+            }
+
+            return false;
+        }
+
+        // Helper: Resolve effective phone number from parameter, last target, task storage, or URL
+        function getEffectivePhone(phoneParam) {
+            if (phoneParam) return phoneParam;
+            if (lastPhoneProcessed) return lastPhoneProcessed;
+            try {
+                const rawTask = GM_getValue(WA_TASK_INFO_KEY, localStorage.getItem(WA_TASK_INFO_KEY));
+                if (rawTask) {
+                    const task = typeof rawTask === "string" ? JSON.parse(rawTask) : rawTask;
+                    if (task && task.phone) return task.phone;
+                }
+            } catch (e) { }
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const p = urlParams.get('phone');
+                if (p) return p;
+            } catch (e) { }
+            return "";
+        }
+
+        // Detect modal / popup indicating the phone number is invalid or not registered on WhatsApp
+        function detectInvalidNumberModal() {
+            // Strategy 1: Find all elements containing an "OK" button
+            // In WhatsApp Web, alert modals have an "OK" button.
+            // If the container surrounding this "OK" button says "isn't on WhatsApp", we found it!
+            const allElements = Array.from(document.querySelectorAll('button, div[role="button"], span[role="button"], [tabindex="0"]'));
+            const okButtons = allElements.filter(el => {
+                const t = (el.innerText || el.textContent || "").trim().toLowerCase();
+                return t === "ok" || t === "okay";
+            });
+
+            for (const okBtn of okButtons) {
+                const container = okBtn.closest('[role="dialog"], [role="alertdialog"], [data-animate-modal-popup="true"], [data-animate-modal-body="true"], [aria-modal="true"], div[tabindex="-1"], .modal')
+                    || okBtn.parentElement?.parentElement?.parentElement
+                    || okBtn.parentElement?.parentElement
+                    || okBtn.parentElement;
+
+                if (container) {
+                    const norm = normalizeWaText(container.innerText || container.textContent);
+                    if (isNotOnWhatsAppText(norm)) {
+                        return { container, okBtn, text: container.innerText || container.textContent };
+                    }
+                }
+            }
+
+            // Strategy 2: Check all standard modal dialog / popup containers
+            const modalContainers = document.querySelectorAll(
+                'div[role="dialog"], div[role="alertdialog"], div[data-animate-modal-popup="true"], div[data-animate-modal-body="true"], div[aria-modal="true"], div[tabindex="-1"], .modal'
+            );
+
+            for (const container of modalContainers) {
+                const norm = normalizeWaText(container.innerText || container.textContent);
+                if (isNotOnWhatsAppText(norm)) {
+                    return { container, text: container.innerText || container.textContent };
+                }
+            }
+
+            // Strategy 3: Global body text check fallback
+            const bodyNorm = normalizeWaText(document.body.innerText);
+            if (isNotOnWhatsAppText(bodyNorm)) {
+                if (okButtons.length > 0) {
+                    const firstOk = okButtons[0];
+                    return { container: firstOk.parentElement || document.body, okBtn: firstOk, text: "Number isn't on WhatsApp" };
+                }
+                return { container: document.body, text: "Number isn't on WhatsApp" };
+            }
+
+            return null;
+        }
+
+        // Dismiss modal dialog cleanly by clicking the "OK" / "Close" button
+        function dismissInvalidNumberModal(detected) {
+            if (!detected) return false;
+
+            // 1. Direct click on already detected okBtn
+            if (detected.okBtn) {
+                console.log("[WhatsApp Web Auto] Clicking detected OK button:", detected.okBtn);
+                clickElementThoroughly(detected.okBtn);
+                return true;
+            }
+
+            const container = detected.container || document.body;
+
+            // 2. Search container for OK button
+            const clickables = Array.from(container.querySelectorAll('button, div[role="button"], span[role="button"], [tabindex="0"]'));
+            const okBtn = clickables.find(btn => {
+                const t = (btn.innerText || btn.textContent || "").trim().toLowerCase();
+                return t === "ok" || t === "okay" || t === "close" || t === "dismiss";
+            });
+
+            if (okBtn) {
+                console.log("[WhatsApp Web Auto] Clicking OK button in container:", okBtn);
+                clickElementThoroughly(okBtn);
+                return true;
+            }
+
+            // 3. Test-id or aria-label
+            const testIdBtn = container.querySelector('[data-testid="popup-controls-ok"], [data-testid="confirm-popup-ok-button"], [data-testid*="ok"], button[aria-label="OK"], div[role="button"][aria-label="OK"]');
+            if (testIdBtn) {
+                console.log("[WhatsApp Web Auto] Clicking test-id OK button:", testIdBtn);
+                clickElementThoroughly(testIdBtn);
+                return true;
+            }
+
+            // 4. Any button in container
+            const anyBtn = container.querySelector('button') || container.querySelector('div[role="button"]');
+            if (anyBtn) {
+                console.log("[WhatsApp Web Auto] Clicking fallback button in container:", anyBtn);
+                clickElementThoroughly(anyBtn);
+                return true;
+            }
+
+            return false;
+        }
+
+        // Check and handle "Not on WhatsApp" or "Invalid Number" popup
+        function checkAndHandleInvalidNumberPopup(phoneParam) {
+            if (invalidNumberHandled) return false;
+
+            const detected = detectInvalidNumberModal();
+            if (!detected) return false;
+
+            const phone = getEffectivePhone(phoneParam);
+            invalidNumberHandled = true;
+            sendAttempted = true;
+            isProcessingImage = false;
+
+            const cleanMsg = (detected.text || "Number not on WhatsApp").trim().replace(/\s+/g, ' ');
+            console.warn(`[WhatsApp Web Auto] ⚠️ Number +${phone} is NOT on WhatsApp! Detected: "${cleanMsg}"`);
+
+            const badge = document.getElementById('wa-helper-badge');
+            if (badge) {
+                badge.style.background = '#ea580c';
+                badge.innerHTML = `⚠️ +${phone || 'Number'} is NOT on WhatsApp! Dismissing & notifying CRM...`;
+            }
+
+            // Click OK button immediately to dismiss the modal dialog
+            dismissInvalidNumberModal(detected);
+
+            // Retry clicking OK after 250ms to ensure dialog closes
+            setTimeout(() => {
+                dismissInvalidNumberModal(detected);
+            }, 250);
+
+            // Broadcast signal to Ishangam CRM tab
+            setTimeout(() => {
+                broadcastSignal({
+                    invalid: true,
+                    notOnWhatsApp: true,
+                    sent: false,
+                    phone: phone,
+                    error: cleanMsg,
+                    timestamp: Date.now()
+                });
+            }, 350);
+
+            return true;
+        }
+
         // Main Chat Processing Engine
         function checkAndProcessCurrentChat() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -1799,6 +2049,7 @@
                 lastPhoneProcessed = phone;
                 sendAttempted = false;
                 isProcessingImage = false;
+                invalidNumberHandled = false;
                 console.log("[WhatsApp Web Auto] New phone target detected:", phone);
 
                 const badge = document.getElementById('wa-helper-badge');
@@ -1808,16 +2059,12 @@
                 }
             }
 
-            if (sendAttempted || isProcessingImage) return;
-
-            // Check for Invalid Number Popup Modal
-            const invalidPopup = document.querySelector('div[role="dialog"]');
-            if (invalidPopup && (invalidPopup.innerText.includes("invalid") || invalidPopup.innerText.includes("Phone number shared via url"))) {
-                console.warn("[WhatsApp Web Auto] Invalid phone number popup detected!");
-                sendAttempted = true;
-                broadcastSignal({ invalid: true, sent: false, phone: phone, timestamp: Date.now() });
+            // Immediately check for invalid number or not-on-whatsapp modal
+            if (checkAndHandleInvalidNumberPopup(phone)) {
                 return;
             }
+
+            if (sendAttempted || isProcessingImage) return;
 
             // Read Current Task Info from GM storage
             let taskInfo = null;
@@ -2010,6 +2257,9 @@
 
         const waObserver = new MutationObserver(() => {
             injectStatusOverlay();
+            const urlParams = new URLSearchParams(window.location.search);
+            const phone = urlParams.get('phone');
+            checkAndHandleInvalidNumberPopup(phone);
             checkAndProcessCurrentChat();
         });
 
@@ -2017,8 +2267,11 @@
 
         setInterval(() => {
             injectStatusOverlay();
+            const urlParams = new URLSearchParams(window.location.search);
+            const phone = urlParams.get('phone');
+            checkAndHandleInvalidNumberPopup(phone);
             checkAndProcessCurrentChat();
-        }, 800);
+        }, 500);
     }
 
 })();
